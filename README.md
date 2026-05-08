@@ -89,4 +89,4 @@ The project is intentionally divided into 3 defense zones:
 
 Detailed defense-oriented documentation:
 
-- [DEFENSE_GUIDE.md](/home/zikkurat/dev/ookp/Lab7/docs/DEFENSE_GUIDE.md:1)
+- [DEFENSE_GUIDE.md](docs/DEFENSE_GUIDE.md)
