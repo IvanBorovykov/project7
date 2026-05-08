@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="chat-layout">
+    <article class="panel chat-panel">
+        <div class="section-head">
+            <div>
+                <div class="eyebrow">{{ chat.chat_type|capitalize }}</div>
+                <h2>{{ chat.name or "Chat #" ~ chat.id }}</h2>
+            </div>
+        </div>
+        <div id="chat-stream" class="chat-stream">
+            {% for message in chat.messages %}
+                {% include "partials/message.html" %}
+            {% endfor %}
+        </div>
+        {% if request.query_params.get("error") %}
+        <p class="error">{{ request.query_params.get("error") }}</p>
+        {% endif %}
+        <form action="/api/chats/{{ chat.id }}/messages" method="post" enctype="multipart/form-data" class="stack-form">
+            <label>Message
+                <textarea name="content" rows="3" placeholder="Write a message"></textarea>
+            </label>
+            <label>Attachment
+                <input type="file" name="attachment">
+            </label>
+            <button type="submit">Send</button>
+        </form>
+    </article>
+    <aside class="panel">
+        <h3>Members</h3>
+        {% for member in chat.members %}
+        <div class="status-row">
+            <span>{{ member.user.full_name }}</span>
+            <span class="badge badge-member">@{{ member.user.username }}</span>
+        </div>
+        {% endfor %}
+    </aside>
+</section>
+
+<script src="{{ url_for('static', path='js/chat.js') }}"
+        data-chat-id="{{ chat.id }}"
+        defer></script>
+{% endblock %}

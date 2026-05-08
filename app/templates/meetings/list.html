@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="grid two">
+    <article class="panel">
+        <div class="section-head">
+            <div>
+                <div class="eyebrow">Meetings</div>
+                <h2>Scheduled meetings</h2>
+            </div>
+        </div>
+        {% for meeting in meetings %}
+        <a class="list-card" href="/meetings/{{ meeting.id }}">
+            <strong>{{ meeting.title }}</strong>
+            <span>{{ meeting.starts_at.strftime("%Y-%m-%d %H:%M") }} · Organizer: {{ meeting.organizer.full_name }}</span>
+        </a>
+        {% else %}
+        <p class="muted">No meetings available.</p>
+        {% endfor %}
+    </article>
+    <article class="panel">
+        <div class="eyebrow">Create</div>
+        <h3>Schedule a meeting</h3>
+        {% if request.query_params.get("error") %}
+        <p class="error">{{ request.query_params.get("error") }}</p>
+        {% endif %}
+        <form action="/api/meetings" method="post" class="stack-form">
+            <label>Title
+                <input type="text" name="title" required>
+            </label>
+            <label>Description
+                <textarea name="description" rows="3"></textarea>
+            </label>
+            <label>Start time
+                <input type="datetime-local" name="starts_at" required>
+            </label>
+            <label>Duration (minutes)
+                <input type="number" name="duration_minutes" min="15" max="180" value="30" required>
+            </label>
+            <label>Invite participants
+                <select name="participant_ids" multiple size="6">
+                    {% for user in users %}
+                    <option value="{{ user.id }}">{{ user.full_name }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label class="check-row">
+                <input type="checkbox" name="recording_enabled" value="true">
+                Recording enabled
+            </label>
+            <button type="submit">Create meeting</button>
+        </form>
+    </article>
+</section>
+{% endblock %}

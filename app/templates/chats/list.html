@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="grid two">
+    <article class="panel">
+        <div class="eyebrow">Chats</div>
+        <h2>Available conversations</h2>
+        {% for chat in chats %}
+        <a class="list-card" href="/chats/{{ chat.id }}">
+            <strong>{{ chat.name or "Chat #" ~ chat.id }}</strong>
+            <span>{{ chat.chat_type|capitalize }}</span>
+        </a>
+        {% endfor %}
+    </article>
+    <article class="panel">
+        <div class="eyebrow">Create</div>
+        <h3>Start private chat</h3>
+        <form action="/api/chats/private" method="post" class="stack-form">
+            <label>User
+                <select name="other_user_id">
+                    {% for user in users %}
+                    <option value="{{ user.id }}">{{ user.full_name }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <button type="submit">Open private chat</button>
+        </form>
+    </article>
+</section>
+{% endblock %}

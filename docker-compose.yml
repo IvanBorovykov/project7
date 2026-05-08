@@ -1,0 +1,25 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: lab7-app
+    depends_on:
+      - livekit
+    environment:
+      LIVEKIT_URL: ws://localhost:7880
+      LIVEKIT_API_KEY: devkey
+      LIVEKIT_API_SECRET: secret
+    ports:
+      - "18000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./uploads:/app/uploads
+    restart: unless-stopped
+
+  livekit:
+    image: livekit/livekit-server:latest
+    container_name: lab7-livekit
+    command: ["--dev", "--bind", "0.0.0.0"]
+    network_mode: host
+    restart: unless-stopped

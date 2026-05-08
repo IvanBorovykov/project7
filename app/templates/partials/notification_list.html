@@ -1,0 +1,10 @@
+{% if notifications %}
+    {% for notification in notifications %}
+    <div class="notice-card">
+        <strong>{{ notification.kind }}</strong>
+        <span>{{ notification.content }}</span>
+    </div>
+    {% endfor %}
+{% else %}
+    <p class="muted">No notifications yet.</p>
+{% endif %}

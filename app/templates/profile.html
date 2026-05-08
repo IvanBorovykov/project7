@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="panel narrow">
+    <div class="eyebrow">Profile</div>
+    <h2>{{ current_user.full_name }}</h2>
+    <p><strong>Username:</strong> {{ current_user.username }}</p>
+    <p><strong>User ID:</strong> {{ current_user.id }}</p>
+    <p class="muted">This page is intentionally simple for defense clarity and session verification.</p>
+</section>
+{% endblock %}

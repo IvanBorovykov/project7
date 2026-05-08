@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="hero-panel">
+    <div>
+        <div class="eyebrow">Workspace</div>
+        <h2>Welcome, {{ current_user.full_name }}</h2>
+        <p class="muted">Your meetings, chats, and notifications are collected here for a single defense-ready flow.</p>
+    </div>
+    <aside class="presence-card">
+        <div class="presence-title">Quick Actions</div>
+        <a class="card-link" href="/meetings">Schedule meeting</a>
+        <a class="card-link" href="/chats">Open chats</a>
+        <a class="card-link" href="/profile">View profile</a>
+    </aside>
+</section>
+
+<section class="grid two">
+    <article class="panel">
+        <h3>Upcoming Meetings</h3>
+        {% if upcoming_meetings %}
+            {% for meeting in upcoming_meetings %}
+            <a class="list-card" href="/meetings/{{ meeting.id }}">
+                <strong>{{ meeting.title }}</strong>
+                <span>{{ meeting.starts_at.strftime("%Y-%m-%d %H:%M") }} · {{ meeting.duration_minutes }} min</span>
+            </a>
+            {% endfor %}
+        {% else %}
+            <p class="muted">No upcoming meetings yet.</p>
+        {% endif %}
+    </article>
+    <article class="panel">
+        <h3>Notifications</h3>
+        <div id="notification-list">
+            {% include "partials/notification_list.html" %}
+        </div>
+    </article>
+</section>
+
+<section class="grid two">
+    <article class="panel">
+        <h3>Recent Chats</h3>
+        {% for chat in recent_chats %}
+        <a class="list-card" href="/chats/{{ chat.id }}">
+            <strong>{{ chat.name or "Chat #" ~ chat.id }}</strong>
+            <span>{{ chat.chat_type|capitalize }}</span>
+        </a>
+        {% endfor %}
+    </article>
+    <article class="panel">
+        <h3>Start Private Chat</h3>
+        <form action="/api/chats/private" method="post" class="stack-form">
+            <label>User
+                <select name="other_user_id">
+                    {% for user in users %}
+                    <option value="{{ user.id }}">{{ user.full_name }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <button type="submit">Create chat</button>
+        </form>
+    </article>
+</section>
+
+<script src="{{ url_for('static', path='js/notifications.js') }}"
+        data-user-id="{{ current_user.id }}"
+        defer></script>
+{% endblock %}

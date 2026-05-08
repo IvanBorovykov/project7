@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="meeting-layout">
+    <article class="panel">
+        <div class="eyebrow">Meeting Room</div>
+        <h2>{{ meeting.title }}</h2>
+        <p class="muted">{{ meeting.description or "No description provided." }}</p>
+        <p><strong>Starts:</strong> {{ meeting.starts_at.strftime("%Y-%m-%d %H:%M") }}</p>
+        <p><strong>Organizer:</strong> {{ meeting.organizer.full_name }}</p>
+        <p><strong>Duration:</strong> {{ meeting.duration_minutes }} minutes</p>
+        <p><strong>Room:</strong> {{ meeting.room_name }}</p>
+        <p><strong>Provider:</strong> LiveKit</p>
+        <div class="livekit-toolbar">
+            <button type="button" id="join-room-btn">Join room</button>
+            <button type="button" id="toggle-mic-btn" class="ghost-btn">Mic</button>
+            <button type="button" id="toggle-camera-btn" class="ghost-btn">Camera</button>
+            <button type="button" id="toggle-screen-btn" class="ghost-btn">Share screen</button>
+            <button type="button" id="leave-room-btn" class="ghost-btn">Leave</button>
+        </div>
+        <p id="livekit-status" class="muted">
+            {% if livekit_room.is_configured %}
+            Ready to connect to LiveKit room via SDK.
+            {% else %}
+            LiveKit is not configured on the server. Set `LIVEKIT_URL`, `LIVEKIT_API_KEY`, and `LIVEKIT_API_SECRET`.
+            {% endif %}
+        </p>
+        <div class="video-shell livekit-grid" id="video-grid">
+            <div class="participant-tile participant-placeholder">Join the room to start publishing camera and microphone.</div>
+        </div>
+    </article>
+    <aside class="stack-col">
+        <article class="panel">
+            <h3>Participants</h3>
+            {% for participant in meeting.participants %}
+            <div class="status-row">
+                <span>{{ participant.user.full_name }}</span>
+                <span class="badge badge-{{ participant.status }}">{{ participant.status }}</span>
+            </div>
+            {% endfor %}
+
+            {% set self_status = namespace(value=None) %}
+            {% for participant in meeting.participants %}
+                {% if participant.user_id == current_user.id %}
+                    {% set self_status.value = participant.status %}
+                {% endif %}
+            {% endfor %}
+            {% if self_status.value == "pending" %}
+            <form action="/api/meetings/{{ meeting.id }}/status" method="post" class="inline-form">
+                <button type="submit" name="status" value="accepted">Accept</button>
+                <button type="submit" name="status" value="declined" class="ghost-btn">Decline</button>
+            </form>
+            {% endif %}
+        </article>
+        <article class="panel">
+            <h3>Recording</h3>
+            <p class="muted">
+                {% if meeting.recording_enabled %}Recording is enabled for this meeting.{% else %}Recording is disabled.{% endif %}
+            </p>
+            {% if meeting.recording %}
+            <p><strong>Status:</strong> {{ meeting.recording.status }}</p>
+            {% if meeting.recording.external_url %}
+            <p><a href="{{ meeting.recording.external_url }}" target="_blank">Open recording link</a></p>
+            {% endif %}
+            {% endif %}
+            {% if meeting.organizer_id == current_user.id %}
+            <form action="/api/meetings/{{ meeting.id }}/recording" method="post" class="stack-form">
+                <label>Status
+                    <select name="status">
+                        <option value="pending">pending</option>
+                        <option value="available">available</option>
+                        <option value="failed">failed</option>
+                    </select>
+                </label>
+                <label>External recording URL
+                    <input type="url" name="external_url" placeholder="https://...">
+                </label>
+                <button type="submit">Save recording metadata</button>
+            </form>
+            {% endif %}
+        </article>
+    </aside>
+</section>
+<script src="https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js"></script>
+<script
+    src="{{ url_for('static', path='js/livekit-room.js') }}"
+    data-room-name="{{ livekit_room.room_name }}"
+    data-display-name="{{ livekit_room.display_name }}"
+    data-configured="{{ 'true' if livekit_room.is_configured else 'false' }}"
+    defer></script>
+{% endblock %}

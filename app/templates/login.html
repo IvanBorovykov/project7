@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Login{% endblock %}
+{% block content %}
+<section class="auth-card">
+    <div>
+        <div class="eyebrow">Demo Access</div>
+        <h2>Sign in to the collaboration portal</h2>
+        <p class="muted">Use one of the seeded demo accounts to test meetings, chats, files, and LiveKit rooms.</p>
+    </div>
+    <form action="/login" method="post" class="stack-form">
+        <label>Username
+            <input type="text" name="username" required>
+        </label>
+        <label>Password
+            <input type="password" name="password" required>
+        </label>
+        {% if error %}
+        <p class="error">{{ error }}</p>
+        {% endif %}
+        <button type="submit">Login</button>
+    </form>
+    <div class="demo-grid">
+        <div><strong>alice</strong><span>alice123</span></div>
+        <div><strong>bob</strong><span>bob123</span></div>
+        <div><strong>carol</strong><span>carol123</span></div>
+    </div>
+</section>
+{% endblock %}
