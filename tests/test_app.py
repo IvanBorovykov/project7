@@ -5,6 +5,7 @@ from io import BytesIO
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import delete
+from starlette.websockets import WebSocketDisconnect
 
 from app.factory import create_app
 from app.database import SessionLocal, init_db
@@ -50,6 +51,12 @@ def test_auth_login_success_and_failure(client: TestClient):
     bad = client.post("/login", data={"username": "alice", "password": "wrong"})
     assert bad.status_code == 400
     assert "Invalid username or password" in bad.text
+
+
+def test_protected_pages_redirect_to_login(client: TestClient):
+    response = client.get("/dashboard", follow_redirects=False)
+    assert response.status_code == 303
+    assert response.headers["location"] == "/login"
 
 
 def test_create_meeting_valid(client: TestClient):
@@ -138,6 +145,23 @@ def test_private_chat_creation_is_idempotent(client: TestClient):
     assert first.headers["location"] == second.headers["location"]
 
 
+def test_private_chat_with_self_is_rejected(client: TestClient):
+    login(client, "alice", "alice123")
+    response = client.post("/api/chats/private", data={"other_user_id": "1"}, follow_redirects=False)
+    assert response.status_code == 303
+    assert "cannot%20start%20a%20private%20chat%20with%20yourself" in response.headers["location"]
+
+
+def test_chats_are_ordered_by_latest_message(client: TestClient):
+    login(client, "alice", "alice123")
+    client.post("/api/chats/private", data={"other_user_id": "2"})
+    client.post("/api/chats/private", data={"other_user_id": "3"})
+    client.post("/api/chats/2/messages", data={"content": "latest bob message"}, follow_redirects=False)
+
+    response = client.get("/chats")
+    assert response.text.index("Alice Johnson / Bob Smith") < response.text.index("Alice Johnson / Carol Davis")
+
+
 def test_send_message_persists(client: TestClient):
     login(client, "alice", "alice123")
     client.post("/api/chats/private", data={"other_user_id": "2"})
@@ -150,6 +174,24 @@ def test_send_message_persists(client: TestClient):
         assert message.sender_id == 1
     finally:
         session.close()
+
+
+def test_reject_empty_chat_message(client: TestClient):
+    login(client, "alice", "alice123")
+    client.post("/api/chats/private", data={"other_user_id": "2"})
+
+    response = client.post("/api/chats/2/messages", data={"content": "   "}, follow_redirects=False)
+    assert response.status_code == 303
+    assert "Message%20content%20or%20file%20is%20required." in response.headers["location"]
+
+
+def test_reject_overlong_chat_message(client: TestClient):
+    login(client, "alice", "alice123")
+    client.post("/api/chats/private", data={"other_user_id": "2"})
+
+    response = client.post("/api/chats/2/messages", data={"content": "x" * 2001}, follow_redirects=False)
+    assert response.status_code == 303
+    assert "Message%20cannot%20exceed%202000%20characters." in response.headers["location"]
 
 
 def test_attachment_upload_validation_and_link(client: TestClient):
@@ -193,6 +235,12 @@ def test_websocket_chat_broadcast_reaches_connected_participant(client: TestClie
         client.post(f"/api/chats/{chat_id}/messages", data={"content": "ws hello"}, follow_redirects=False)
         payload = websocket.receive_json()
         assert payload["content"] == "ws hello"
+
+
+def test_websocket_chat_rejects_unauthenticated_client(client: TestClient):
+    with pytest.raises(WebSocketDisconnect):
+        with client.websocket_connect("/ws/chat/1"):
+            pass
 
 
 def test_notification_event_created_on_invite_and_private_message(client: TestClient):

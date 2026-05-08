@@ -1,4 +1,4 @@
-<article class="message-card">
+<article class="message-card{% if message.sender_id == current_user.id %} message-card-own{% endif %}">
     <div class="message-head">
         <strong>{{ message.sender.full_name }}</strong>
         <span>{{ message.created_at.strftime("%Y-%m-%d %H:%M") }}</span>
@@ -7,6 +7,6 @@
     <p>{{ message.content }}</p>
     {% endif %}
     {% for attachment in message.attachments %}
-    <a class="attachment-link" href="/uploads/{{ attachment.stored_name }}" target="_blank">{{ attachment.original_name }}</a>
+    <a class="attachment-link" href="/uploads/{{ attachment.stored_name }}" target="_blank" rel="noopener">{{ attachment.original_name }}</a>
     {% endfor %}
 </article>

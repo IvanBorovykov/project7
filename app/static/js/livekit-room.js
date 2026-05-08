@@ -29,10 +29,36 @@
         return;
     }
 
+    const audioOutput = document.createElement("div");
+    audioOutput.className = "livekit-audio-output";
+    audioOutput.setAttribute("aria-hidden", "true");
+    document.body.appendChild(audioOutput);
+
     let room = null;
     let micEnabled = true;
     let cameraEnabled = true;
     let screenEnabled = false;
+
+    function isAudioTrack(track) {
+        return track.kind === "audio" || track.kind === livekit.Track?.Kind?.Audio;
+    }
+
+    function isVideoTrack(track) {
+        return track.kind === "video" || track.kind === livekit.Track?.Kind?.Video;
+    }
+
+    function trackKey(participant, publication, track) {
+        const trackId = publication?.trackSid || track?.sid || track?.mediaStreamTrack?.id || publication?.source || "track";
+        return `${participant.identity}-${trackId}`.replace(/[^a-zA-Z0-9_-]/g, "_");
+    }
+
+    function setConnectedControls(isConnected) {
+        joinButton.disabled = isConnected;
+        leaveButton.disabled = !isConnected;
+        micButton.disabled = !isConnected;
+        cameraButton.disabled = !isConnected;
+        screenButton.disabled = !isConnected;
+    }
 
     function renderPlaceholder() {
         if (!grid.children.length) {
@@ -50,35 +76,92 @@
         }
     }
 
-    function tileId(participantIdentity, trackSid) {
-        return `tile-${participantIdentity}-${trackSid}`;
+    function tileId(participant, publication, track) {
+        return `tile-${trackKey(participant, publication, track)}`;
     }
 
-    function removeTrack(participantIdentity, trackSid) {
-        const existing = document.getElementById(tileId(participantIdentity, trackSid));
+    function audioId(participant, publication, track) {
+        return `audio-${trackKey(participant, publication, track)}`;
+    }
+
+    function detachTrack(track) {
+        if (!track || typeof track.detach !== "function") {
+            return;
+        }
+        track.detach().forEach((element) => element.remove());
+    }
+
+    function removeTrack(participant, publication, track) {
+        const existing = document.getElementById(tileId(participant, publication, track));
         if (existing) {
             existing.remove();
         }
+        const audio = document.getElementById(audioId(participant, publication, track));
+        if (audio) {
+            audio.remove();
+        }
+        detachTrack(track);
         renderPlaceholder();
     }
 
-    function attachTrack(track, participant) {
+    function attachVideoTrack(track, publication, participant, isLocal) {
         clearPlaceholder();
         const wrapper = document.createElement("div");
         wrapper.className = "participant-tile";
-        wrapper.id = tileId(participant.identity, track.sid);
+        wrapper.id = tileId(participant, publication, track);
 
         const label = document.createElement("div");
         label.className = "participant-label";
-        label.textContent = participant.name || participant.identity;
+        label.textContent = `${participant.name || participant.identity}${isLocal ? " (you)" : ""}`;
         wrapper.appendChild(label);
 
         const element = track.attach();
         element.classList.add("participant-media");
         element.autoplay = true;
         element.playsInline = true;
+        element.muted = isLocal;
         wrapper.appendChild(element);
         grid.appendChild(wrapper);
+    }
+
+    function attachAudioTrack(track, publication, participant) {
+        const element = track.attach();
+        element.id = audioId(participant, publication, track);
+        element.autoplay = true;
+        element.hidden = true;
+        audioOutput.appendChild(element);
+    }
+
+    function attachTrack(track, publication, participant, options = {}) {
+        if (!track) {
+            return;
+        }
+        removeTrack(participant, publication, track);
+        if (options.isLocal && isAudioTrack(track)) {
+            return;
+        }
+        if (isAudioTrack(track)) {
+            attachAudioTrack(track, publication, participant);
+            return;
+        }
+        if (isVideoTrack(track)) {
+            attachVideoTrack(track, publication, participant, Boolean(options.isLocal));
+        }
+    }
+
+    function resetRoomUi(message) {
+        room = null;
+        grid.innerHTML = "";
+        audioOutput.innerHTML = "";
+        micEnabled = true;
+        cameraEnabled = true;
+        screenEnabled = false;
+        micButton.textContent = "Mic";
+        cameraButton.textContent = "Camera";
+        screenButton.textContent = "Share screen";
+        setConnectedControls(false);
+        statusNode.textContent = message;
+        renderPlaceholder();
     }
 
     async function fetchToken() {
@@ -107,36 +190,41 @@
             room = new livekit.Room();
 
             room.on(livekit.RoomEvent.TrackSubscribed, (track, publication, participant) => {
-                attachTrack(track, participant);
+                attachTrack(track, publication, participant);
             });
 
             room.on(livekit.RoomEvent.TrackUnsubscribed, (track, publication, participant) => {
-                removeTrack(participant.identity, track.sid);
+                removeTrack(participant, publication, track);
             });
 
             room.on(livekit.RoomEvent.LocalTrackPublished, (publication, participant) => {
                 if (publication.track) {
-                    attachTrack(publication.track, participant);
+                    attachTrack(publication.track, publication, participant, { isLocal: true });
                 }
             });
 
             room.on(livekit.RoomEvent.LocalTrackUnpublished, (publication, participant) => {
                 if (publication.track) {
-                    removeTrack(participant.identity, publication.track.sid);
+                    removeTrack(participant, publication, publication.track);
                 }
+            });
+
+            room.on(livekit.RoomEvent.Disconnected, () => {
+                resetRoomUi("Disconnected from LiveKit room.");
             });
 
             await room.connect(tokenData.server_url, tokenData.participant_token);
             await room.localParticipant.enableCameraAndMicrophone();
             statusNode.textContent = `Connected to ${roomName}.`;
-            leaveButton.disabled = false;
-            micButton.disabled = false;
-            cameraButton.disabled = false;
-            screenButton.disabled = false;
+            setConnectedControls(true);
             renderPlaceholder();
         } catch (error) {
+            if (room) {
+                room.disconnect();
+                room = null;
+            }
             statusNode.textContent = error.message || "Failed to connect to LiveKit.";
-            joinButton.disabled = false;
+            setConnectedControls(false);
         }
     }
 
@@ -145,12 +233,6 @@
             return;
         }
         room.disconnect();
-        room = null;
-        grid.innerHTML = "";
-        renderPlaceholder();
-        joinButton.disabled = false;
-        leaveButton.disabled = true;
-        statusNode.textContent = "Disconnected from LiveKit room.";
     }
 
     async function toggleMicrophone() {
@@ -185,8 +267,5 @@
     micButton.addEventListener("click", toggleMicrophone);
     cameraButton.addEventListener("click", toggleCamera);
     screenButton.addEventListener("click", toggleScreenShare);
-    leaveButton.disabled = true;
-    micButton.disabled = true;
-    cameraButton.disabled = true;
-    screenButton.disabled = true;
+    setConnectedControls(false);
 })();

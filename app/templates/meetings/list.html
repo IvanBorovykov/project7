@@ -11,7 +11,7 @@
         {% for meeting in meetings %}
         <a class="list-card" href="/meetings/{{ meeting.id }}">
             <strong>{{ meeting.title }}</strong>
-            <span>{{ meeting.starts_at.strftime("%Y-%m-%d %H:%M") }} · Organizer: {{ meeting.organizer.full_name }}</span>
+            <span>{{ meeting.starts_at.strftime("%Y-%m-%d %H:%M") }} - Organizer: {{ meeting.organizer.full_name }}</span>
         </a>
         {% else %}
         <p class="muted">No meetings available.</p>

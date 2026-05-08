@@ -21,7 +21,7 @@
             {% for meeting in upcoming_meetings %}
             <a class="list-card" href="/meetings/{{ meeting.id }}">
                 <strong>{{ meeting.title }}</strong>
-                <span>{{ meeting.starts_at.strftime("%Y-%m-%d %H:%M") }} · {{ meeting.duration_minutes }} min</span>
+                <span>{{ meeting.starts_at.strftime("%Y-%m-%d %H:%M") }} - {{ meeting.duration_minutes }} min</span>
             </a>
             {% endfor %}
         {% else %}
@@ -42,8 +42,15 @@
         {% for chat in recent_chats %}
         <a class="list-card" href="/chats/{{ chat.id }}">
             <strong>{{ chat.name or "Chat #" ~ chat.id }}</strong>
-            <span>{{ chat.chat_type|capitalize }}</span>
+            {% if chat.messages %}
+            {% set last_message = chat.messages[-1] %}
+            <span>{{ last_message.sender.full_name }}: {{ last_message.content or "Attachment" }}</span>
+            {% else %}
+            <span>{{ chat.chat_type|capitalize }} - no messages yet</span>
+            {% endif %}
         </a>
+        {% else %}
+        <p class="muted">No recent chats yet.</p>
         {% endfor %}
     </article>
     <article class="panel">

@@ -153,6 +153,11 @@ button {
     cursor: pointer;
 }
 
+button:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+}
+
 .ghost-btn {
     background: transparent;
     color: var(--accent-dark);
@@ -270,6 +275,10 @@ button {
     background: #0d0d0d;
 }
 
+.livekit-audio-output {
+    display: none;
+}
+
 .status-row, .message-head, .section-head, .inline-form {
     display: flex;
     justify-content: space-between;
@@ -296,6 +305,7 @@ button {
     max-height: 480px;
     overflow-y: auto;
     padding-right: 8px;
+    scroll-behavior: smooth;
 }
 
 .message-head span {
@@ -303,10 +313,56 @@ button {
     font-size: 0.88rem;
 }
 
+.message-card-own {
+    border-color: rgba(191, 90, 43, 0.24);
+    background: rgba(191, 90, 43, 0.08);
+}
+
 .attachment-link {
     display: inline-block;
     margin-top: 10px;
     font-weight: bold;
+}
+
+.connection-status {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 0.84rem;
+    min-width: 86px;
+    padding: 6px 10px;
+}
+
+.connection-status-live {
+    color: var(--success);
+    background: rgba(43, 122, 75, 0.12);
+}
+
+.connection-status-offline {
+    color: var(--danger);
+    background: rgba(179, 58, 58, 0.1);
+}
+
+.chat-compose {
+    margin-top: 16px;
+}
+
+.compose-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: center;
+}
+
+.compose-row .muted {
+    font-size: 0.88rem;
+}
+
+.empty-state {
+    padding: 14px 0;
 }
 
 .error {
@@ -334,5 +390,10 @@ button {
 
     .demo-grid {
         grid-template-columns: 1fr;
+    }
+
+    .compose-row {
+        align-items: stretch;
+        flex-direction: column;
     }
 }

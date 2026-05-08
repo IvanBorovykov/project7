@@ -17,7 +17,8 @@ class LocalFileStorageStrategy:
         UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
     async def save_upload(self, upload: UploadFile) -> tuple[str, int]:
-        suffix = Path(upload.filename or "").suffix.lower()
+        filename = Path(upload.filename or "").name
+        suffix = Path(filename).suffix.lower()
         if suffix not in ALLOWED_ATTACHMENT_EXTENSIONS:
             raise FileValidationError("Unsupported file type.")
 

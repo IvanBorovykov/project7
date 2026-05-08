@@ -17,7 +17,15 @@
         const data = JSON.parse(event.data);
         const card = document.createElement("div");
         card.className = "notice-card";
-        card.innerHTML = `<strong>${data.kind}</strong><span>${data.content}</span>`;
+
+        const title = document.createElement("strong");
+        title.textContent = data.kind || "notification";
+        card.appendChild(title);
+
+        const content = document.createElement("span");
+        content.textContent = data.content || "";
+        card.appendChild(content);
+
         container.prepend(card);
     };
 })();

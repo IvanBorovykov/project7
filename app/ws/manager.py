@@ -28,11 +28,17 @@ class ConnectionManager:
 
     async def broadcast_chat(self, chat_id: int, payload: dict[str, str]) -> None:
         for websocket in list(self.chat_connections[chat_id]):
-            await websocket.send_json(payload)
+            try:
+                await websocket.send_json(payload)
+            except Exception:
+                self.disconnect_chat(chat_id, websocket)
 
     async def notify_user(self, user_id: int, payload: dict[str, str]) -> None:
         for websocket in list(self.notification_connections[user_id]):
-            await websocket.send_json(payload)
+            try:
+                await websocket.send_json(payload)
+            except Exception:
+                self.disconnect_notifications(user_id, websocket)
 
 
 manager = ConnectionManager()

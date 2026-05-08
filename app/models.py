@@ -71,6 +71,7 @@ class Chat(Base):
     messages: Mapped[list["Message"]] = relationship(
         back_populates="chat",
         cascade="all, delete-orphan",
+        order_by="Message.created_at",
     )
 
 
@@ -101,6 +102,7 @@ class Message(Base):
     attachments: Mapped[list["Attachment"]] = relationship(
         back_populates="message",
         cascade="all, delete-orphan",
+        order_by="Attachment.created_at",
     )
 
 

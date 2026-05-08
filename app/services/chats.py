@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from fastapi import UploadFile
 from sqlalchemy.orm import Session
 
@@ -8,6 +10,9 @@ from ..repositories.chats import ChatRepository
 from ..repositories.users import UserRepository
 from .files import LocalFileStorageStrategy
 from .notifications import NotificationService
+
+
+MAX_MESSAGE_CHARS = 2000
 
 
 class ChatService:
@@ -19,7 +24,13 @@ class ChatService:
         self.storage = LocalFileStorageStrategy()
 
     def list_for_user(self, user_id: int) -> list[Chat]:
-        return self.chats.list_for_user(user_id)
+        chats = self.chats.list_for_user(user_id)
+        return sorted(chats, key=self._latest_activity, reverse=True)
+
+    def _latest_activity(self, chat: Chat):
+        if chat.messages:
+            return chat.messages[-1].created_at
+        return chat.created_at
 
     def get(self, chat_id: int) -> Chat | None:
         return self.chats.get(chat_id)
@@ -33,6 +44,9 @@ class ChatService:
         return chat
 
     def create_or_get_private_chat(self, *, current_user_id: int, other_user_id: int) -> Chat:
+        if current_user_id == other_user_id:
+            raise ValueError("You cannot start a private chat with yourself.")
+
         existing = self.chats.get_private_chat(current_user_id, other_user_id)
         if existing is not None:
             return existing
@@ -62,15 +76,21 @@ class ChatService:
     ) -> Message:
         if not self.chats.user_in_chat(chat_id=chat_id, user_id=sender_id):
             raise ValueError("User is not a member of this chat.")
-        if not content.strip() and upload is None:
-            raise ValueError("Message content or file is required.")
 
-        message = self.chats.create_message(chat_id=chat_id, sender_id=sender_id, content=content.strip())
-        if upload is not None and upload.filename:
+        cleaned_content = content.strip()
+        has_upload = upload is not None and bool(upload.filename)
+        if not cleaned_content and not has_upload:
+            raise ValueError("Message content or file is required.")
+        if len(cleaned_content) > MAX_MESSAGE_CHARS:
+            raise ValueError(f"Message cannot exceed {MAX_MESSAGE_CHARS} characters.")
+
+        message = self.chats.create_message(chat_id=chat_id, sender_id=sender_id, content=cleaned_content)
+        if has_upload:
+            original_name = Path(upload.filename or "").name
             stored_name, size = await self.storage.save_upload(upload)
             self.chats.add_attachment(
                 message_id=message.id,
-                original_name=upload.filename,
+                original_name=original_name,
                 stored_name=stored_name,
                 content_type=upload.content_type or "application/octet-stream",
                 size_bytes=size,
@@ -94,4 +114,4 @@ class ChatService:
                     )
 
         self.session.flush()
-        return self.chats.get(chat_id).messages[-1]
+        return message

@@ -97,7 +97,10 @@ def create_private_chat(
     db: Session = Depends(get_db),
 ):
     user = get_current_user(request, db)
-    chat = ChatService(db).create_or_get_private_chat(current_user_id=user.id, other_user_id=other_user_id)
+    try:
+        chat = ChatService(db).create_or_get_private_chat(current_user_id=user.id, other_user_id=other_user_id)
+    except ValueError as exc:
+        return _redirect(f"/chats?error={quote(str(exc))}")
     db.commit()
     return _redirect(f"/chats/{chat.id}")
 
@@ -113,11 +116,16 @@ async def create_message(
     user = get_current_user(request, db)
     service = ChatService(db)
     try:
-        message = await service.send_message(chat_id=chat_id, sender_id=user.id, content=content, upload=attachment)
+        await service.send_message(chat_id=chat_id, sender_id=user.id, content=content, upload=attachment)
     except FileValidationError as exc:
-        return RedirectResponse(f"/chats/{chat_id}?error={exc}", status_code=303)
+        return RedirectResponse(f"/chats/{chat_id}?error={quote(str(exc))}", status_code=303)
+    except ValueError as exc:
+        destination = f"/chats/{chat_id}" if service.get(chat_id) is not None else "/chats"
+        return RedirectResponse(f"{destination}?error={quote(str(exc))}", status_code=303)
     db.commit()
     refreshed = ChatService(db).get(chat_id)
+    if refreshed is None or not refreshed.messages:
+        return _redirect("/chats")
     last_message = refreshed.messages[-1]
     attachment_url = ""
     attachment_name = ""
@@ -129,6 +137,7 @@ async def create_message(
     await manager.broadcast_chat(
         chat_id,
         {
+            "sender_id": str(last_message.sender_id),
             "sender": last_message.sender.full_name,
             "content": last_message.content,
             "created_at": last_message.created_at.strftime("%Y-%m-%d %H:%M"),

@@ -30,7 +30,7 @@ def login_page(request: Request, db: Session = Depends(get_db)):
     user = optional_user(request, db)
     if user:
         return _redirect("/dashboard")
-    return templates.TemplateResponse("login.html", {"request": request, "error": None})
+    return templates.TemplateResponse(request, "login.html", {"error": None})
 
 
 @router.post("/login")
@@ -43,8 +43,9 @@ def login_submit(
     user = AuthService(db).login(username, password)
     if user is None:
         return templates.TemplateResponse(
+            request,
             "login.html",
-            {"request": request, "error": "Invalid username or password."},
+            {"error": "Invalid username or password."},
             status_code=400,
         )
     request.session["user_id"] = user.id
@@ -65,9 +66,9 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     notification_service = NotificationService(db)
     users = [candidate for candidate in UserRepository(db).list_all() if candidate.id != user.id]
     return templates.TemplateResponse(
+        request,
         "dashboard.html",
         {
-            "request": request,
             "current_user": user,
             "upcoming_meetings": meeting_service.upcoming_for_user(user.id),
             "recent_chats": chat_service.list_for_user(user.id),
@@ -80,7 +81,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
 @router.get("/profile")
 def profile(request: Request, db: Session = Depends(get_db)):
     user = get_current_user(request, db)
-    return templates.TemplateResponse("profile.html", {"request": request, "current_user": user})
+    return templates.TemplateResponse(request, "profile.html", {"current_user": user})
 
 
 @router.get("/meetings")
@@ -88,9 +89,9 @@ def meetings_list(request: Request, db: Session = Depends(get_db)):
     user = get_current_user(request, db)
     users = [candidate for candidate in UserRepository(db).list_all() if candidate.id != user.id]
     return templates.TemplateResponse(
+        request,
         "meetings/list.html",
         {
-            "request": request,
             "current_user": user,
             "meetings": MeetingService(db).list_for_user(user.id),
             "users": users,
@@ -110,9 +111,9 @@ def meeting_detail(meeting_id: int, request: Request, db: Session = Depends(get_
         display_name=user.full_name,
     )
     return templates.TemplateResponse(
+        request,
         "meetings/detail.html",
         {
-            "request": request,
             "current_user": user,
             "meeting": meeting,
             "livekit_room": livekit_room,
@@ -125,9 +126,9 @@ def chats_list(request: Request, db: Session = Depends(get_db)):
     user = get_current_user(request, db)
     users = [candidate for candidate in UserRepository(db).list_all() if candidate.id != user.id]
     return templates.TemplateResponse(
+        request,
         "chats/list.html",
         {
-            "request": request,
             "current_user": user,
             "chats": ChatService(db).list_for_user(user.id),
             "users": users,
@@ -145,9 +146,9 @@ def chat_detail(chat_id: int, request: Request, db: Session = Depends(get_db)):
         return _redirect("/chats")
 
     return templates.TemplateResponse(
+        request,
         "chats/detail.html",
         {
-            "request": request,
             "current_user": user,
             "chat": chat,
         },
