@@ -70,18 +70,35 @@ async def update_meeting_status(
 
 
 @router.post("/meetings/{meeting_id}/recording")
-def save_recording(
+async def save_recording(
     meeting_id: int,
     request: Request,
-    status: str = Form(...),
+    status: str = Form(default="available"),
     external_url: str = Form(""),
+    recording: UploadFile | None = File(default=None),
     db: Session = Depends(get_db),
 ):
     user = get_current_user(request, db)
-    meeting = MeetingService(db).get(meeting_id)
+    meeting_service = MeetingService(db)
+    meeting = meeting_service.get(meeting_id)
     if meeting is None or meeting.organizer_id != user.id:
+        if recording is not None:
+            return JSONResponse({"error": "Meeting not found."}, status_code=404)
         return _redirect("/meetings")
-    MeetingService(db).save_recording(
+
+    if recording is not None and recording.filename:
+        try:
+            await meeting_service.save_recording_upload(meeting_id=meeting_id, upload=recording)
+        except FileValidationError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=400)
+        except ValueError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=400)
+        db.commit()
+        refreshed = meeting_service.get(meeting_id)
+        recording_url = refreshed.recording.external_url if refreshed and refreshed.recording else None
+        return JSONResponse({"status": "available", "recording_url": recording_url}, status_code=201)
+
+    meeting_service.save_recording(
         meeting_id=meeting_id,
         status=status,
         external_url=external_url.strip() or None,

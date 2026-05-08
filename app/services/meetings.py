@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 from datetime import datetime
+from pathlib import Path
 
+from fastapi import UploadFile
 from sqlalchemy.orm import Session
 
 from ..models import Meeting, MeetingParticipant
 from ..repositories.meetings import MeetingRepository
 from ..repositories.users import UserRepository
+from ..config import RECORDING_DIR
+from .files import LocalRecordingStorageStrategy
 from .livekit import LiveKitFacade
 from .notifications import NotificationService
 
@@ -18,6 +22,7 @@ class MeetingService:
         self.users = UserRepository(session)
         self.notifications = NotificationService(session)
         self.video_provider = LiveKitFacade()
+        self.recording_storage = LocalRecordingStorageStrategy()
 
     def list_for_user(self, user_id: int) -> list[Meeting]:
         return self.meetings.list_for_user(user_id)
@@ -100,3 +105,30 @@ class MeetingService:
 
     def save_recording(self, *, meeting_id: int, status: str, external_url: str | None) -> None:
         self.meetings.save_recording(meeting_id=meeting_id, status=status, external_url=external_url)
+
+    async def save_recording_upload(self, *, meeting_id: int, upload: UploadFile) -> str:
+        meeting = self.meetings.get(meeting_id)
+        if meeting is None:
+            raise ValueError("Meeting not found.")
+        if not meeting.recording_enabled:
+            raise ValueError("Recording is disabled for this meeting.")
+
+        stored_name, _ = await self.recording_storage.save_upload(upload)
+        previous_url = meeting.recording.external_url if meeting.recording else None
+        self.meetings.save_recording(
+            meeting_id=meeting_id,
+            status="available",
+            external_url=f"/uploads/recordings/{stored_name}",
+        )
+        self._remove_local_recording(previous_url, current_name=stored_name)
+        return stored_name
+
+    def _remove_local_recording(self, recording_url: str | None, *, current_name: str) -> None:
+        if not recording_url or not recording_url.startswith("/uploads/recordings/"):
+            return
+        previous_name = Path(recording_url).name
+        if not previous_name or previous_name == current_name:
+            return
+        previous_path = RECORDING_DIR / previous_name
+        if previous_path.exists():
+            previous_path.unlink()

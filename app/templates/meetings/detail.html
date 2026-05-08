@@ -15,6 +15,10 @@
             <button type="button" id="toggle-mic-btn" class="ghost-btn">Mic</button>
             <button type="button" id="toggle-camera-btn" class="ghost-btn">Camera</button>
             <button type="button" id="toggle-screen-btn" class="ghost-btn">Share screen</button>
+            {% if meeting.recording_enabled and meeting.organizer_id == current_user.id %}
+            <button type="button" id="start-recording-btn" class="ghost-btn">Start recording</button>
+            <button type="button" id="stop-recording-btn" class="ghost-btn">Stop recording</button>
+            {% endif %}
             <button type="button" id="leave-room-btn" class="ghost-btn">Leave</button>
         </div>
         <p id="livekit-status" class="muted">
@@ -56,10 +60,13 @@
             <p class="muted">
                 {% if meeting.recording_enabled %}Recording is enabled for this meeting.{% else %}Recording is disabled.{% endif %}
             </p>
+            {% if meeting.recording_enabled and meeting.organizer_id == current_user.id %}
+            <p id="recording-status" class="muted">Organizer can start recording after joining the room.</p>
+            {% endif %}
             {% if meeting.recording %}
             <p><strong>Status:</strong> {{ meeting.recording.status }}</p>
             {% if meeting.recording.external_url %}
-            <p><a href="{{ meeting.recording.external_url }}" target="_blank">Open recording link</a></p>
+            <p><a id="recording-link" href="{{ meeting.recording.external_url }}" target="_blank">Open recording</a></p>
             {% endif %}
             {% endif %}
             {% if meeting.organizer_id == current_user.id %}
@@ -83,8 +90,11 @@
 <script src="https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js"></script>
 <script
     src="{{ url_for('static', path='js/livekit-room.js') }}"
+    data-meeting-id="{{ meeting.id }}"
     data-room-name="{{ livekit_room.room_name }}"
     data-display-name="{{ livekit_room.display_name }}"
     data-configured="{{ 'true' if livekit_room.is_configured else 'false' }}"
+    data-recording-enabled="{{ 'true' if meeting.recording_enabled else 'false' }}"
+    data-can-record="{{ 'true' if meeting.organizer_id == current_user.id else 'false' }}"
     defer></script>
 {% endblock %}
